@@ -28,8 +28,8 @@ fig, ax = plt.subplots(1, 1, subplot_kw={'projection': 'polar'}, figsize=(8, 8))
 
 # Define sensor types and colors
 sensor_types = {
-    "DE_X": ("DE_X_진폭", "DE_X_위상", 'r', "DE X"),
-    "DE_Y": ("DE_Y_진폭", "DE_Y_위상", 'b', "DE Y"),
+    # "DE_X": ("DE_X_진폭", "DE_X_위상", 'r', "DE X"),
+    # "DE_Y": ("DE_Y_진폭", "DE_Y_위상", 'b', "DE Y"),
     "NDE_X": ("NDE_X_진폭", "NDE_X_위상", 'g', "NDE X"),
     "NDE_Y": ("NDE_Y_진폭", "NDE_Y_위상", 'y', "NDE Y"),
 }
@@ -47,9 +47,9 @@ for sensor, (amp_col, phase_col, color, label) in sensor_types.items():
     ax.scatter(theta_vals, r_vals, c=color, s=30)  # Smaller points (size 30)
 
 # Customize plot
-ax.set_title("Rotor Balancing Polar Plot", va='bottom')
+ax.set_title("LLDPE CGC Motor Balancing Polar Plot", va='bottom')
 ax.set_theta_zero_location("N")  # Set zero at top
-ax.set_theta_direction(-1)       # Clockwise
+# ax.set_theta_direction(-1)       # Clockwise
 
 # Set grid lines at 40-degree intervals
 ax.set_thetagrids(range(0, 360, 40), fontsize=10)
