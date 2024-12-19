@@ -31,19 +31,20 @@ def vector_addition_subtraction(v1, v2):
     return result_add, result_sub
 
 def plot_vectors(vectors, result_add, result_sub):
-    """Plot vectors on a polar plot."""
+    """Plot vectors on a polar plot with arrows."""
     fig, ax = plt.subplots(subplot_kw={'projection': 'polar'})
     ax.set_theta_zero_location("N")  # 0 degrees at the top
     ax.set_theta_direction(-1)  # Clockwise
     
-    # Plotting vectors
+    # Plotting vectors as arrows
     colors = ['blue', 'green', 'red', 'orange']
     labels = ['Vector 1', 'Vector 2', 'Addition', 'Subtraction']
     all_vectors = vectors + [result_add, result_sub]
     
     for i, vec in enumerate(all_vectors):
-        theta = np.radians(vec[1])  # Convert to radians
-        ax.quiver(theta, 0, 0, vec[0], angles='xy', scale_units='xy', scale=1, color=colors[i], label=labels[i])
+        theta = np.radians(vec[1])  # Convert angle to radians
+        ax.quiver(theta, 0, vec[0] * np.cos(theta), vec[0] * np.sin(theta),
+                  angles='xy', scale_units='xy', scale=1, color=colors[i], label=labels[i])
     
     # Add grid and legend
     ax.set_xticks(np.radians(np.arange(0, 360, 10)))  # 10-degree intervals
@@ -57,28 +58,5 @@ vector2 = (3, 120)  # Example: magnitude 3, angle 120 degrees
 # Perform addition and subtraction
 result_add, result_sub = vector_addition_subtraction(vector1, vector2)
 
-# Plot the vectors
-plot_vectors([vector1, vector2], result_add, result_sub)
-
-def plot_vectors_with_arrows(vectors, result_add, result_sub):
-    """Plot vectors as arrows on a polar plot."""
-    fig, ax = plt.subplots(subplot_kw={'projection': 'polar'})
-    ax.set_theta_zero_location("N")  # 0 degrees at the top
-    ax.set_theta_direction(-1)  # Clockwise
-    
-    # Plotting vectors as arrows
-    colors = ['blue', 'green', 'red', 'orange']
-    labels = ['Vector 1', 'Vector 2', 'Addition', 'Subtraction']
-    all_vectors = vectors + [result_add, result_sub]
-    
-    for i, vec in enumerate(all_vectors):
-        theta = np.radians(vec[1])  # Convert to radians
-        ax.quiver(theta, 0, theta, vec[0], angles='xy', scale_units='xy', scale=1, color=colors[i], label=labels[i])
-    
-    # Add grid and legend
-    ax.set_xticks(np.radians(np.arange(0, 360, 10)))  # 10-degree intervals
-    ax.legend(loc='upper right')
-    plt.show()
-
 # Plot the vectors with arrows
-plot_vectors_with_arrows([vector1, vector2], result_add, result_sub)
+plot_vectors([vector1, vector2], result_add, result_sub)
