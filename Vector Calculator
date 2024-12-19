@@ -1,3 +1,65 @@
+import numpy as np
+import matplotlib.pyplot as plt
+
+def polar_to_cartesian(magnitude, angle_deg):
+    """Convert polar coordinates to Cartesian."""
+    angle_rad = np.radians(angle_deg)
+    x = magnitude * np.cos(angle_rad)
+    y = magnitude * np.sin(angle_rad)
+    return x, y
+
+def cartesian_to_polar(x, y):
+    """Convert Cartesian coordinates to polar."""
+    magnitude = np.sqrt(x**2 + y**2)
+    angle_deg = np.degrees(np.arctan2(y, x))
+    return magnitude, angle_deg
+
+def vector_addition_subtraction(v1, v2):
+    """Perform vector addition and subtraction."""
+    # Convert to Cartesian coordinates
+    x1, y1 = polar_to_cartesian(v1[0], v1[1])
+    x2, y2 = polar_to_cartesian(v2[0], v2[1])
+    
+    # Addition
+    x_add, y_add = x1 + x2, y1 + y2
+    result_add = cartesian_to_polar(x_add, y_add)
+    
+    # Subtraction
+    x_sub, y_sub = x1 - x2, y1 - y2
+    result_sub = cartesian_to_polar(x_sub, y_sub)
+    
+    return result_add, result_sub
+
+def plot_vectors(vectors, result_add, result_sub):
+    """Plot vectors on a polar plot."""
+    fig, ax = plt.subplots(subplot_kw={'projection': 'polar'})
+    ax.set_theta_zero_location("N")  # 0 degrees at the top
+    ax.set_theta_direction(-1)  # Clockwise
+    
+    # Plotting vectors
+    colors = ['blue', 'green', 'red', 'orange']
+    labels = ['Vector 1', 'Vector 2', 'Addition', 'Subtraction']
+    all_vectors = vectors + [result_add, result_sub]
+    
+    for i, vec in enumerate(all_vectors):
+        theta = np.radians(vec[1])  # Convert to radians
+        ax.quiver(theta, 0, 0, vec[0], angles='xy', scale_units='xy', scale=1, color=colors[i], label=labels[i])
+    
+    # Add grid and legend
+    ax.set_xticks(np.radians(np.arange(0, 360, 10)))  # 10-degree intervals
+    ax.legend(loc='upper right')
+    plt.show()
+
+# Input vectors in polar form (magnitude, angle in degrees)
+vector1 = (5, 45)  # Example: magnitude 5, angle 45 degrees
+vector2 = (3, 120)  # Example: magnitude 3, angle 120 degrees
+
+# Perform addition and subtraction
+result_add, result_sub = vector_addition_subtraction(vector1, vector2)
+
+# Plot the vectors
+plot_vectors([vector1, vector2], result_add, result_sub)
+
 def plot_vectors_with_arrows(vectors, result_add, result_sub):
     """Plot vectors as arrows on a polar plot."""
     fig, ax = plt.subplots(subplot_kw={'projection': 'polar'})
