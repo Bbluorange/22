@@ -23,3 +23,64 @@ ax.set_title("Polar Plot of Vectors", va='bottom')
 ax.legend(loc='upper right')
 
 plt.show()
+
+
+
+------
+
+import matplotlib.pyplot as plt
+import numpy as np
+
+# 원본 벡터 정의
+vectors = [
+    {"label": "Plane 1", "magnitude": 8.3, "angle_deg": 172},
+    {"label": "Plane 2", "magnitude": 12, "angle_deg": 350}
+]
+
+# 복소수 변환
+vec1 = vectors[0]["magnitude"] * np.exp(1j * np.deg2rad(vectors[0]["angle_deg"]))
+vec2 = vectors[1]["magnitude"] * np.exp(1j * np.deg2rad(vectors[1]["angle_deg"]))
+
+# 벡터 합/차
+vec_sum = vec1 + vec2
+vec_diff = vec1 - vec2
+
+# 복소수 → Polar 변환
+def to_polar(complex_vec):
+    magnitude = np.abs(complex_vec)
+    angle_deg = np.rad2deg(np.angle(complex_vec)) % 360
+    return magnitude, angle_deg
+
+sum_magnitude, sum_angle = to_polar(vec_sum)
+diff_magnitude, diff_angle = to_polar(vec_diff)
+
+# 플롯 생성
+fig = plt.figure(figsize=(8, 8))
+ax = fig.add_subplot(111, polar=True)
+
+# 기존 벡터
+for vec in vectors:
+    angle_rad = np.deg2rad(vec["angle_deg"])
+    ax.plot([0, angle_rad], [0, vec["magnitude"]], marker='o',
+            label=f"{vec['label']}: {vec['magnitude']} @ {vec['angle_deg']}°")
+
+# 합성 벡터 (녹색 점선)
+ax.plot([0, np.deg2rad(sum_angle)], [0, sum_magnitude], linestyle='--', color='green', marker='o',
+        label=f"Sum: {sum_magnitude:.2f} @ {sum_angle:.1f}°")
+
+# 차이 벡터 (빨간 점선)
+ax.plot([0, np.deg2rad(diff_angle)], [0, diff_magnitude], linestyle='--', color='red', marker='o',
+        label=f"Diff: {diff_magnitude:.2f} @ {diff_angle:.1f}°")
+
+# Polar 설정 - 0도 위쪽, 각도 CW
+ax.set_theta_zero_location("N")
+ax.set_theta_direction(-1)
+
+# 제목
+ax.set_title("Vector Polar Plot (with Sum & Difference)", va='bottom')
+
+# Legend 위치 조정 (우측 상단 외부)
+ax.legend(loc='upper left', bbox_to_anchor=(1.05, 1.0), borderaxespad=0.)
+
+plt.tight_layout()
+plt.show()
