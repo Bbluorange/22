@@ -1,0 +1,25 @@
+import matplotlib.pyplot as plt
+import numpy as np
+
+# 데이터 정의 (크기와 각도)
+vectors = [
+    {"label": "Plane 1", "magnitude": 8.3, "angle_deg": 172},
+    {"label": "Plane 2", "magnitude": 12, "angle_deg": 350}
+]
+
+# Polar plot을 위한 설정
+fig = plt.figure()
+ax = fig.add_subplot(111, polar=True)
+
+# 각 벡터 그리기
+for vec in vectors:
+    angle_rad = np.deg2rad(vec["angle_deg"])
+    ax.plot([0, angle_rad], [0, vec["magnitude"]], marker='o', label=f"{vec['label']}: {vec['magnitude']} @ {vec['angle_deg']}°")
+
+# 플롯 세부 설정
+ax.set_theta_zero_location("E")  # 0도 방향을 동쪽(오른쪽)으로
+ax.set_theta_direction(-1)       # 각도 시계방향 증가
+ax.set_title("Polar Plot of Vectors", va='bottom')
+ax.legend(loc='upper right')
+
+plt.show()
