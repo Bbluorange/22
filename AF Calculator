@@ -1,0 +1,321 @@
+'================================================================================
+' Amplification Factor (AF) Calculator
+' System 1 Bode Plot CSV Export 전용
+' 기준: API 670 Half-Power Method (0.707 × Peak)
+' AF = Nc / (N2 - N1)
+'================================================================================
+
+Sub Calculate_AF()
+
+    Dim ws As Worksheet
+    Dim wsResult As Worksheet
+    Set ws = ActiveSheet
+
+    '--- 메타데이터 읽기 (Row 1~7) ---
+    Dim machineName As String
+    Dim pointName   As String
+    Dim yUnit       As String
+    machineName = CStr(ws.Cells(1, 2).Value)
+    pointName   = CStr(ws.Cells(2, 2).Value)
+    yUnit       = CStr(ws.Cells(6, 2).Value)
+
+    '--- 데이터 범위 확인 (Row 9부터) ---
+    Dim lastRow As Long
+    lastRow = ws.Cells(ws.Rows.Count, "A").End(xlUp).Row
+
+    If lastRow < 10 Then
+        MsgBox "데이터가 부족합니다. 올바른 Bode Plot CSV 파일인지 확인하세요.", vbCritical
+        Exit Sub
+    End If
+
+    '--- Valid 데이터만 수집 ---
+    Dim i As Long, j As Long
+    Dim validCount As Long
+    validCount = 0
+
+    For i = 9 To lastRow
+        If UCase(Trim(CStr(ws.Cells(i, 3).Value))) = "VALID" Then
+            validCount = validCount + 1
+        End If
+    Next i
+
+    If validCount < 5 Then
+        MsgBox "유효한 데이터(Valid)가 " & validCount & "개뿐입니다. 최소 5개 이상 필요합니다.", vbCritical
+        Exit Sub
+    End If
+
+    Dim arrRPM()   As Double
+    Dim arrAmp()   As Double
+    Dim arrPhase() As Double
+    ReDim arrRPM(1 To validCount)
+    ReDim arrAmp(1 To validCount)
+    ReDim arrPhase(1 To validCount)
+
+    j = 1
+    For i = 9 To lastRow
+        If UCase(Trim(CStr(ws.Cells(i, 3).Value))) = "VALID" Then
+            arrRPM(j)   = CDbl(ws.Cells(i, 1).Value)
+            arrAmp(j)   = CDbl(ws.Cells(i, 2).Value)
+            arrPhase(j) = CDbl(ws.Cells(i, 4).Value)
+            j = j + 1
+        End If
+    Next i
+
+    '--- Peak 탐색 ---
+    Dim peakAmp  As Double
+    Dim peakRPM  As Double
+    Dim peakIdx  As Long
+    peakAmp = 0
+    peakIdx = 1
+
+    For i = 1 To validCount
+        If arrAmp(i) > peakAmp Then
+            peakAmp = arrAmp(i)
+            peakRPM = arrRPM(i)
+            peakIdx = i
+        End If
+    Next i
+
+    '--- Half-Power Level ---
+    Dim halfPower As Double
+    halfPower = peakAmp * (1# / Sqr(2#))
+
+    '--- N1 탐색: Peak 좌측에서 0.707 교차점 보간 ---
+    Dim N1 As Double
+    N1 = -1
+
+    If peakIdx > 1 Then
+        For i = peakIdx To 2 Step -1
+            If arrAmp(i) >= halfPower And arrAmp(i - 1) < halfPower Then
+                N1 = arrRPM(i - 1) + (halfPower - arrAmp(i - 1)) * _
+                     (arrRPM(i) - arrRPM(i - 1)) / (arrAmp(i) - arrAmp(i - 1))
+                Exit For
+            End If
+        Next i
+    End If
+
+    '--- N2 탐색: Peak 우측에서 0.707 교차점 보간 ---
+    Dim N2 As Double
+    N2 = -1
+
+    If peakIdx < validCount Then
+        For i = peakIdx To validCount - 1
+            If arrAmp(i) >= halfPower And arrAmp(i + 1) < halfPower Then
+                N2 = arrRPM(i) + (halfPower - arrAmp(i)) * _
+                     (arrRPM(i + 1) - arrRPM(i)) / (arrAmp(i + 1) - arrAmp(i))
+                Exit For
+            End If
+        Next i
+    End If
+
+    '--- 교차점 미발견 처리 ---
+    Dim warningMsg As String
+    warningMsg = ""
+
+    If N1 < 0 Then
+        N1 = arrRPM(1)
+        warningMsg = warningMsg & "※ N1: 좌측 0.707 교차점 미발견 → 첫 번째 RPM 사용" & vbCrLf
+    End If
+
+    If N2 < 0 Then
+        N2 = arrRPM(validCount)
+        warningMsg = warningMsg & "※ N2: 우측 0.707 교차점 미발견 → 마지막 RPM 사용" & vbCrLf
+    End If
+
+    '--- AF 계산 ---
+    Dim bandwidth As Double
+    Dim AF        As Double
+    bandwidth = N2 - N1
+
+    If bandwidth <= 0 Then
+        MsgBox "Bandwidth(N2-N1) 계산 오류: N2 <= N1" & vbCrLf & _
+               "데이터 범위가 임계속도를 충분히 포함하는지 확인하세요.", vbCritical
+        Exit Sub
+    End If
+
+    AF = peakRPM / bandwidth
+
+    '================================================================================
+    ' 결과 시트 생성
+    '================================================================================
+    Dim resultSheetName As String
+    resultSheetName = "AF_Result"
+
+    On Error Resume Next
+    Set wsResult = ThisWorkbook.Sheets(resultSheetName)
+    On Error GoTo 0
+
+    If wsResult Is Nothing Then
+        Set wsResult = ThisWorkbook.Sheets.Add(After:=ws)
+        wsResult.Name = resultSheetName
+    Else
+        wsResult.Cells.Clear
+        Dim co As ChartObject
+        For Each co In wsResult.ChartObjects
+            co.Delete
+        Next co
+    End If
+
+    '--- 제목 ---
+    With wsResult.Range("A1")
+        .Value = "Amplification Factor (AF) 계산 결과"
+        .Font.Bold = True
+        .Font.Size = 14
+        .Font.Color = RGB(0, 70, 127)
+    End With
+
+    '--- 장비 정보 ---
+    Call WriteHeader(wsResult, 3, "장비 정보")
+    Call WriteRow(wsResult, 4, "Machine Name", machineName, "")
+    Call WriteRow(wsResult, 5, "Point Name",   pointName,   "")
+    Call WriteRow(wsResult, 6, "Y-Axis Unit",  yUnit,       "")
+
+    '--- 계산 결과 ---
+    Call WriteHeader(wsResult, 8, "계산 결과")
+    Call WriteRow(wsResult, 9,  "Peak Amplitude",            Format(peakAmp,   "0.000"), yUnit)
+    Call WriteRow(wsResult, 10, "Critical Speed (Nc)",       Format(peakRPM,   "0"),     "RPM")
+    Call WriteRow(wsResult, 11, "Half-Power Level (×0.707)", Format(halfPower, "0.000"), yUnit)
+    Call WriteRow(wsResult, 12, "N1  (좌측 Half-Power RPM)", Format(N1,        "0.0"),   "RPM")
+    Call WriteRow(wsResult, 13, "N2  (우측 Half-Power RPM)", Format(N2,        "0.0"),   "RPM")
+    Call WriteRow(wsResult, 14, "Bandwidth  (N2 - N1)",      Format(bandwidth, "0.0"),   "RPM")
+
+    '--- AF 최종값 강조 ---
+    With wsResult.Range("A16")
+        .Value = "AF  (Amplification Factor)"
+        .Font.Bold = True
+        .Font.Size = 13
+    End With
+    With wsResult.Range("B16")
+        .Value = Format(AF, "0.00")
+        .Font.Bold = True
+        .Font.Size = 13
+    End With
+
+    '--- API 670 판정 ---
+    With wsResult.Range("A17")
+        .Value = "API 670 판정"
+        .Font.Bold = True
+    End With
+    With wsResult.Range("B17")
+        If AF < 8 Then
+            .Value = "ACCEPTABLE  (AF < 8)"
+            .Font.Color = RGB(0, 128, 0)
+        ElseIf AF < 10 Then
+            .Value = "MARGINAL  (8 ≤ AF < 10)"
+            .Font.Color = RGB(255, 140, 0)
+        Else
+            .Value = "UNACCEPTABLE  (AF ≥ 10)"
+            .Font.Color = RGB(200, 0, 0)
+        End If
+        .Font.Bold = True
+    End With
+
+    '--- 경고 메시지 ---
+    If Len(warningMsg) > 0 Then
+        wsResult.Range("A19").Value = "주의사항"
+        wsResult.Range("A19").Font.Bold = True
+        wsResult.Range("A19").Font.Color = RGB(200, 0, 0)
+        wsResult.Range("A20").Value = warningMsg
+        wsResult.Range("A20").Font.Color = RGB(200, 0, 0)
+    End If
+
+    '--- 열 너비 조정 ---
+    wsResult.Columns("A").ColumnWidth = 32
+    wsResult.Columns("B").ColumnWidth = 16
+    wsResult.Columns("C").ColumnWidth = 10
+
+    '================================================================================
+    ' Bode Plot 차트 생성
+    '================================================================================
+    wsResult.Range("E1").Value = "RPM"
+    wsResult.Range("F1").Value = "Amp"
+    wsResult.Range("E1:F1").Font.Bold = True
+    wsResult.Columns("E:F").ColumnWidth = 10
+
+    For i = 1 To validCount
+        wsResult.Cells(i + 1, 5).Value = arrRPM(i)
+        wsResult.Cells(i + 1, 6).Value = arrAmp(i)
+    Next i
+
+    Dim cht As ChartObject
+    Set cht = wsResult.ChartObjects.Add(Left:=280, Top:=10, Width:=520, Height:=320)
+
+    With cht.Chart
+        .ChartType = xlXYScatterLinesNoMarkers
+
+        .SeriesCollection.NewSeries
+        With .SeriesCollection(1)
+            .XValues = wsResult.Range(wsResult.Cells(2, 5), wsResult.Cells(validCount + 1, 5))
+            .Values  = wsResult.Range(wsResult.Cells(2, 6), wsResult.Cells(validCount + 1, 6))
+            .Name    = "1X Amplitude"
+            .Format.Line.ForeColor.RGB = RGB(0, 112, 192)
+            .Format.Line.Weight = 2
+        End With
+
+        .SeriesCollection.NewSeries
+        With .SeriesCollection(2)
+            .XValues = Array(arrRPM(1), arrRPM(validCount))
+            .Values  = Array(halfPower, halfPower)
+            .Name    = "0.707 × Peak"
+            .Format.Line.DashStyle = msoLineDash
+            .Format.Line.ForeColor.RGB = RGB(255, 0, 0)
+            .Format.Line.Weight = 1.5
+        End With
+
+        .HasTitle = True
+        .ChartTitle.Text = "Bode Plot  |  " & machineName & "  /  " & pointName
+        .Axes(xlCategory).HasTitle = True
+        .Axes(xlCategory).AxisTitle.Text = "Speed (RPM)"
+        .Axes(xlValue).HasTitle = True
+        .Axes(xlValue).AxisTitle.Text = "Amplitude (" & yUnit & ")"
+        .HasLegend = True
+        .Legend.Position = xlLegendPositionBottom
+    End With
+
+    '================================================================================
+    ' 완료 팝업
+    '================================================================================
+    wsResult.Activate
+    wsResult.Range("A1").Select
+
+    Dim msg As String
+    msg = "AF 계산 완료" & vbCrLf & vbCrLf & _
+          "  Peak RPM (Nc) : " & Format(peakRPM, "0") & " RPM" & vbCrLf & _
+          "  N1            : " & Format(N1, "0.0") & " RPM" & vbCrLf & _
+          "  N2            : " & Format(N2, "0.0") & " RPM" & vbCrLf & _
+          "  Bandwidth     : " & Format(bandwidth, "0.0") & " RPM" & vbCrLf & _
+          "  AF            : " & Format(AF, "0.00") & vbCrLf & vbCrLf
+
+    If AF < 8 Then
+        msg = msg & "API 670 판정: ACCEPTABLE (AF < 8)"
+    ElseIf AF < 10 Then
+        msg = msg & "API 670 판정: MARGINAL (8 <= AF < 10)"
+    Else
+        msg = msg & "API 670 판정: UNACCEPTABLE (AF >= 10)"
+    End If
+
+    If Len(warningMsg) > 0 Then
+        msg = msg & vbCrLf & vbCrLf & warningMsg
+    End If
+
+    MsgBox msg, vbInformation, "AF Calculator - " & machineName
+
+End Sub
+
+'================================================================================
+' 헬퍼 함수 (모듈 내 같은 위치에 붙여넣기)
+'================================================================================
+Private Sub WriteHeader(ws As Worksheet, rowNum As Long, title As String)
+    With ws.Cells(rowNum, 1)
+        .Value = "[ " & title & " ]"
+        .Font.Bold = True
+        .Font.Color = RGB(0, 70, 127)
+    End With
+End Sub
+
+Private Sub WriteRow(ws As Worksheet, rowNum As Long, _
+                     label As String, val As String, unit As String)
+    ws.Cells(rowNum, 1).Value = label
+    ws.Cells(rowNum, 2).Value = val
+    ws.Cells(rowNum, 3).Value = unit
+End Sub
